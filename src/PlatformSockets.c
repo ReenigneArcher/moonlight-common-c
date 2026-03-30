@@ -409,14 +409,13 @@ int setSocketNonBlocking(SOCKET s, bool enabled) {
 #if defined(__vita__) || defined(__HAIKU__)
     int val = enabled ? 1 : 0;
     return setsockopt(s, SOL_SOCKET, SO_NONBLOCK, (char*)&val, sizeof(val));
-#elif defined(O_NONBLOCK)
-    return fcntl(s, F_SETFL, (enabled ? O_NONBLOCK : 0) | (fcntl(s, F_GETFL) & ~O_NONBLOCK));
-#elif defined(FIONBIO)
-#ifdef LC_WINDOWS
+#elif defined(LC_WINDOWS) && defined(FIONBIO)
     u_long val = enabled ? 1 : 0;
-#else
+    return ioctlsocket(s, FIONBIO, &val);
+#elif defined(O_NONBLOCK)
+    return fcntl(s, F_SETFL, (enabled ? O_NONBLOCK : 0) | (fcntl(s, F_GETFL, 0) & ~O_NONBLOCK));
+#elif defined(FIONBIO)
     int val = enabled ? 1 : 0;
-#endif
     return ioctlsocket(s, FIONBIO, &val);
 #else
 #error Please define your platform non-blocking sockets API!

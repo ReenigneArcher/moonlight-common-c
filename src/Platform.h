@@ -64,9 +64,41 @@
 #endif
 
 #ifdef LC_WINDOWS
+# if defined(NXDK)
+static inline char* strtok_r(char* str, const char* delim, char** saveptr) {
+    char* token;
+    char* end;
+
+    if (str != NULL) {
+        *saveptr = str;
+    }
+
+    if (*saveptr == NULL) {
+        return NULL;
+    }
+
+    token = *saveptr + strspn(*saveptr, delim);
+    if (*token == '\0') {
+        *saveptr = NULL;
+        return NULL;
+    }
+
+    end = token + strcspn(token, delim);
+    if (*end != '\0') {
+        *end = '\0';
+        *saveptr = end + 1;
+    }
+    else {
+        *saveptr = NULL;
+    }
+
+    return token;
+}
+# else
 // Windows doesn't have strtok_r() but it has the same
 // function named strtok_s().
 #define strtok_r strtok_s
+# endif
 
 # if defined(WINAPI_FAMILY) && WINAPI_FAMILY==WINAPI_FAMILY_APP
 # define LC_UWP
@@ -116,7 +148,7 @@
 #define LC_ASSERT_VT(x) LC_ASSERT(x)
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(NXDK)
 #pragma intrinsic(_byteswap_ushort)
 #define BSWAP16(x) _byteswap_ushort(x)
 #pragma intrinsic(_byteswap_ulong)

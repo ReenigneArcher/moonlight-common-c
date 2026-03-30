@@ -30,7 +30,9 @@ extern in_port_t n3ds_udp_port;
 #define SetLastSocketError(x) WSASetLastError(x)
 #define LastSocketError() WSAGetLastError()
 
+#ifndef SHUT_RDWR
 #define SHUT_RDWR SD_BOTH
+#endif
 
 #ifdef EAGAIN
 #undef EAGAIN
@@ -68,7 +70,7 @@ extern in_port_t n3ds_udp_port;
 #define EMSGSIZE WSAEMSGSIZE
 
 typedef int SOCK_RET;
-typedef int SOCKADDR_LEN;
+typedef socklen_t SOCKADDR_LEN;
 
 #else
 
