@@ -5,7 +5,7 @@
 
 typedef void(*ThreadEntry)(void* context);
 
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) || defined(NXDK)
 typedef SRWLOCK PLT_MUTEX;
 typedef CONDITION_VARIABLE PLT_COND;
 typedef struct _PLT_THREAD {
@@ -37,7 +37,7 @@ typedef struct _PLT_THREAD {
 #error Unsupported platform
 #endif
 
-#ifdef LC_WINDOWS
+#if defined(LC_WINDOWS) || defined(NXDK)
 typedef HANDLE PLT_EVENT;
 #else
 typedef struct _PLT_EVENT {

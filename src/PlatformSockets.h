@@ -18,7 +18,7 @@ extern in_port_t n3ds_udp_port;
 #endif
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(NXDK)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <wlanapi.h>
@@ -83,11 +83,19 @@ typedef int SOCKADDR_LEN;
 #include <signal.h>
 #include <poll.h>
 
+#ifndef ioctlsocket
 #define ioctlsocket ioctl
+#endif
 #define LastSocketError() errno
 #define SetLastSocketError(x) errno = x
+
+#ifndef INVALID_SOCKET
 #define INVALID_SOCKET -1
+#endif
+
+#ifndef SOCKET_ERROR
 #define SOCKET_ERROR -1
+#endif
 
 typedef int SOCKET;
 typedef ssize_t SOCK_RET;

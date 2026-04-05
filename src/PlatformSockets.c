@@ -409,7 +409,7 @@ int setSocketNonBlocking(SOCKET s, bool enabled) {
 #if defined(__vita__) || defined(__HAIKU__)
     int val = enabled ? 1 : 0;
     return setsockopt(s, SOL_SOCKET, SO_NONBLOCK, (char*)&val, sizeof(val));
-#elif defined(O_NONBLOCK)
+#elif defined(O_NONBLOCK) && !defined(NXDK)
     return fcntl(s, F_SETFL, (enabled ? O_NONBLOCK : 0) | (fcntl(s, F_GETFL) & ~O_NONBLOCK));
 #elif defined(FIONBIO)
 #ifdef LC_WINDOWS
@@ -452,7 +452,6 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
     LC_SOCKADDR addr;
     struct pollfd pfd;
     int err;
-    int val;
 
     // Create a non-blocking TCP socket
     s = createSocket(dstaddr->ss_family, SOCK_STREAM, IPPROTO_TCP, true);
@@ -472,6 +471,8 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
     // We still must split our own sends into smaller chunks with TCP_NODELAY enabled to
     // avoid MTU issues on the way out to to the target.
 #if defined(LC_WINDOWS)
+    int val;
+
     // Windows doesn't support setting TCP_MAXSEG but IP_PMTUDISC_DONT forces the MSS to the protocol
     // minimum which is what we want here. Linux doesn't do this (disabling PMTUD just avoids setting DF).
     if (dstaddr->ss_family == AF_INET) {
@@ -491,12 +492,13 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
     // restrict MSS to the minimum. It strips all options out of the SYN packet which
     // forces the remote party to fall back to the minimum MSS. TCP_MAXSEG doesn't seem
     // to work correctly for outbound connections on macOS/iOS.
-    val = 1;
+    int val = 1;
     if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT, (char*)&val, sizeof(val)) < 0) {
         Limelog("setsockopt(TCP_NOOPT, %d) failed: %d\n", val, (int)LastSocketError());
     }
 #elif defined(TCP_MAXSEG)
-    val = dstaddr->ss_family == AF_INET ? TCPv4_MSS : TCPv6_MSS;
+    int val = dstaddr->ss_family == AF_INET ? TCPv4_MSS : TCPv6_MSS;
+
     if (setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, (char*)&val, sizeof(val)) < 0) {
         Limelog("setsockopt(TCP_MAXSEG, %d) failed: %d\n", val, (int)LastSocketError());
     }
@@ -1009,7 +1011,7 @@ int initializePlatformSockets(void) {
     return WSAStartup(MAKEWORD(2, 0), &data);
 #elif defined(__vita__) || defined(__WIIU__) || defined(__3DS__)
     return 0; // already initialized
-#elif defined(LC_POSIX) && !defined(LC_CHROME)
+#elif defined(LC_POSIX) && !defined(LC_CHROME) && !defined(NXDK)
     // Disable SIGPIPE signals to avoid us getting
     // killed when a socket gets an EPIPE error
     struct sigaction sa;

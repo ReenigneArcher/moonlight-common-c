@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(NXDK)
 // Prevent bogus definitions of error codes
 // that are incompatible with Winsock errors.
 #define _CRT_NO_POSIX_ERROR_CODES
@@ -13,11 +13,23 @@
 #include <string.h>
 #include <stdint.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(NXDK)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#elif defined(NXDK)
+// nxdk exposes Win32-style threading primitives, but its network stack is
+// lwIP with POSIX/BSD socket compatibility headers. Pull in the socket-facing
+// headers from the POSIX side so moonlight-common-c uses the Unix backend.
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <fcntl.h>
 #elif defined(__APPLE__)
 #include <mach/mach_time.h>
 #include <unistd.h>
@@ -54,7 +66,7 @@
 #include <fcntl.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(NXDK)
 # define LC_WINDOWS
 #else
 # define LC_POSIX
@@ -75,6 +87,7 @@
 #endif
 
 #endif
+
 
 #include <stdio.h>
 #include "Limelight.h"
@@ -116,7 +129,7 @@
 #define LC_ASSERT_VT(x) LC_ASSERT(x)
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(NXDK)
 #pragma intrinsic(_byteswap_ushort)
 #define BSWAP16(x) _byteswap_ushort(x)
 #pragma intrinsic(_byteswap_ulong)
