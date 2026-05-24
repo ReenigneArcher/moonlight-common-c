@@ -37,7 +37,7 @@ typedef struct _PLT_THREAD {
 #error Unsupported platform
 #endif
 
-#ifdef LC_WINDOWS
+#if defined(LC_WINDOWS)
 typedef HANDLE PLT_EVENT;
 #else
 typedef struct _PLT_EVENT {
