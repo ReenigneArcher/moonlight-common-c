@@ -66,7 +66,7 @@
 #include <fcntl.h>
 #endif
 
-#if defined(_WIN32) && !defined(NXDK)
+#if defined(_WIN32)
 # define LC_WINDOWS
 #else
 # define LC_POSIX
@@ -76,15 +76,19 @@
 #endif
 
 #ifdef LC_WINDOWS
+# if !defined(NXDK)
 // Windows doesn't have strtok_r() but it has the same
 // function named strtok_s().
 #define strtok_r strtok_s
+# endif
 
-# if defined(WINAPI_FAMILY) && WINAPI_FAMILY==WINAPI_FAMILY_APP
-# define LC_UWP
-# else
-# define LC_WINDOWS_DESKTOP
-#endif
+# if !defined(NXDK)
+#  if defined(WINAPI_FAMILY) && WINAPI_FAMILY==WINAPI_FAMILY_APP
+#   define LC_UWP
+#  else
+#   define LC_WINDOWS_DESKTOP
+#  endif
+# endif
 
 #endif
 
@@ -96,7 +100,7 @@
     if (ListenerCallbacks.logMessage) \
         ListenerCallbacks.logMessage(s, ##__VA_ARGS__)
 
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
 #include <crtdbg.h>
 #ifdef LC_DEBUG
 #define LC_ASSERT(x) __analysis_assume(x); \
@@ -129,21 +133,21 @@
 #define LC_ASSERT_VT(x) LC_ASSERT(x)
 #endif
 
-#if defined(_MSC_VER) && !defined(NXDK)
+#if defined(__has_builtin) && __has_builtin(__builtin_bswap16)
+#define BSWAP16(x) __builtin_bswap16(x)
+#define BSWAP32(x) __builtin_bswap32(x)
+#define BSWAP64(x) __builtin_bswap64(x)
+#elif (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
+#define BSWAP16(x) __builtin_bswap16(x)
+#define BSWAP32(x) __builtin_bswap32(x)
+#define BSWAP64(x) __builtin_bswap64(x)
+#elif defined(_MSC_VER)
 #pragma intrinsic(_byteswap_ushort)
 #define BSWAP16(x) _byteswap_ushort(x)
 #pragma intrinsic(_byteswap_ulong)
 #define BSWAP32(x) _byteswap_ulong(x)
 #pragma intrinsic(_byteswap_uint64)
 #define BSWAP64(x) _byteswap_uint64(x)
-#elif (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
-#define BSWAP16(x) __builtin_bswap16(x)
-#define BSWAP32(x) __builtin_bswap32(x)
-#define BSWAP64(x) __builtin_bswap64(x)
-#elif defined(__has_builtin) && __has_builtin(__builtin_bswap16)
-#define BSWAP16(x) __builtin_bswap16(x)
-#define BSWAP32(x) __builtin_bswap32(x)
-#define BSWAP64(x) __builtin_bswap64(x)
 #else
 #error Please define your platform byteswap macros!
 #endif

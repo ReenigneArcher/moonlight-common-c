@@ -20,7 +20,7 @@ static int activeMutexes = 0;
 static int activeEvents = 0;
 static int activeCondVars = 0;
 
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
 
 #pragma pack(push, 8)
 typedef struct tagTHREADNAME_INFO
@@ -67,7 +67,7 @@ void setThreadNameWin32(const char* name) {
 }
 #endif
 
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
 DWORD WINAPI ThreadProc(LPVOID lpParameter) {
     struct thread_context* ctx = (struct thread_context*)lpParameter;
 #elif defined(__WIIU__)
@@ -78,7 +78,7 @@ void* ThreadProc(void* context) {
     struct thread_context* ctx = (struct thread_context*)context;
 #endif
 
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     setThreadNameWin32(ctx->name);
 #elif defined(__linux__) || defined(__FreeBSD__)
     pthread_setname_np(pthread_self(), ctx->name);
@@ -90,7 +90,7 @@ void* ThreadProc(void* context) {
 
     free(ctx);
 
-#if defined(LC_WINDOWS) || defined(NXDK) || defined(__vita__) || defined(__WIIU__) || defined(__3DS__)
+#if defined(LC_WINDOWS) || defined(__vita__) || defined(__WIIU__) || defined(__3DS__)
     return 0;
 #else
     return NULL;
@@ -98,7 +98,7 @@ void* ThreadProc(void* context) {
 }
 
 void PltSleepMs(int ms) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     SleepEx(ms, FALSE);
 #elif defined(__3DS__)
     s64 nsecs = ms * 1000000;
@@ -118,7 +118,7 @@ void PltSleepMsInterruptible(PLT_THREAD* thread, int ms) {
 }
 
 int PltCreateMutex(PLT_MUTEX* mutex) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     InitializeSRWLock(mutex);
 #elif defined(__WIIU__)
     OSFastMutex_Init(mutex, "");
@@ -137,7 +137,7 @@ int PltCreateMutex(PLT_MUTEX* mutex) {
 void PltDeleteMutex(PLT_MUTEX* mutex) {
     LC_ASSERT(activeMutexes > 0);
     activeMutexes--;
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     // No-op to destroy a SRWLOCK
 #elif defined(__WIIU__) || defined(__3DS__)
 
@@ -147,7 +147,7 @@ void PltDeleteMutex(PLT_MUTEX* mutex) {
 }
 
 void PltLockMutex(PLT_MUTEX* mutex) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     AcquireSRWLockExclusive(mutex);
 #elif defined(__WIIU__)
     OSFastMutex_Lock(mutex);
@@ -159,7 +159,7 @@ void PltLockMutex(PLT_MUTEX* mutex) {
 }
 
 void PltUnlockMutex(PLT_MUTEX* mutex) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     ReleaseSRWLockExclusive(mutex);
 #elif defined(__WIIU__)
     OSFastMutex_Unlock(mutex);
@@ -174,7 +174,7 @@ void PltJoinThread(PLT_THREAD* thread) {
     LC_ASSERT(activeThreads > 0);
     activeThreads--;
 
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     WaitForSingleObjectEx(thread->handle, INFINITE, FALSE);
     CloseHandle(thread->handle);
 #elif defined(__WIIU__)
@@ -191,7 +191,7 @@ void PltDetachThread(PLT_THREAD* thread) {
     LC_ASSERT(activeThreads > 0);
     activeThreads--;
 
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     // According MSDN:
     // "Closing a thread handle does not terminate the associated thread or remove the thread object."
     CloseHandle(thread->handle);
@@ -232,7 +232,7 @@ int PltCreateThread(const char* name, ThreadEntry entry, void* context, PLT_THRE
 
     thread->cancelled = false;
 
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     {
         thread->handle = CreateThread(NULL, 0, ThreadProc, ctx, 0, NULL);
         if (thread->handle == NULL) {
@@ -310,12 +310,8 @@ int PltCreateThread(const char* name, ThreadEntry entry, void* context, PLT_THRE
 }
 
 int PltCreateEvent(PLT_EVENT* event) {
-#if defined(LC_WINDOWS) || defined(NXDK)
 #if defined(LC_WINDOWS)
-    *event = CreateEventEx(NULL, NULL, CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
-#else
     *event = CreateEvent(NULL, TRUE, FALSE, NULL);
-#endif
     if (!*event) {
         return -1;
     }
@@ -336,7 +332,7 @@ int PltCreateEvent(PLT_EVENT* event) {
 void PltCloseEvent(PLT_EVENT* event) {
     LC_ASSERT(activeEvents > 0);
     activeEvents--;
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     CloseHandle(*event);
 #else
     PltDeleteConditionVariable(&event->cond);
@@ -345,7 +341,7 @@ void PltCloseEvent(PLT_EVENT* event) {
 }
 
 void PltSetEvent(PLT_EVENT* event) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     SetEvent(*event);
 #else
     PltLockMutex(&event->mutex);
@@ -356,7 +352,7 @@ void PltSetEvent(PLT_EVENT* event) {
 }
 
 void PltClearEvent(PLT_EVENT* event) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     ResetEvent(*event);
 #else
     event->signalled = false;
@@ -364,7 +360,7 @@ void PltClearEvent(PLT_EVENT* event) {
 }
 
 void PltWaitForEvent(PLT_EVENT* event) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     WaitForSingleObjectEx(*event, INFINITE, FALSE);
 #else
     PltLockMutex(&event->mutex);
@@ -376,7 +372,7 @@ void PltWaitForEvent(PLT_EVENT* event) {
 }
 
 int PltCreateConditionVariable(PLT_COND* cond, PLT_MUTEX* mutex) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     InitializeConditionVariable(cond);
 #elif defined(__WIIU__)
     OSFastCond_Init(cond, "");
@@ -392,7 +388,7 @@ int PltCreateConditionVariable(PLT_COND* cond, PLT_MUTEX* mutex) {
 void PltDeleteConditionVariable(PLT_COND* cond) {
     LC_ASSERT(activeCondVars > 0);
     activeCondVars--;
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     // No-op to delete a CONDITION_VARIABLE
 #elif defined(__WIIU__)
     // No-op to delete an OSFastCondition
@@ -404,7 +400,7 @@ void PltDeleteConditionVariable(PLT_COND* cond) {
 }
 
 void PltSignalConditionVariable(PLT_COND* cond) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     WakeConditionVariable(cond);
 #elif defined(__WIIU__)
     OSFastCond_Signal(cond);
@@ -416,7 +412,7 @@ void PltSignalConditionVariable(PLT_COND* cond) {
 }
 
 void PltWaitForConditionVariable(PLT_COND* cond, PLT_MUTEX* mutex) {
-#if defined(LC_WINDOWS) || defined(NXDK)
+#if defined(LC_WINDOWS)
     SleepConditionVariableSRW(cond, mutex, INFINITE, 0);
 #elif defined(__WIIU__)
     OSFastCond_Wait(cond, mutex);

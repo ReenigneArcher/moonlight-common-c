@@ -12,7 +12,7 @@
 #endif
 #define TCPv6_MSS 1220
 
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
 
 #ifndef SIO_UDP_CONNRESET
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
@@ -70,7 +70,7 @@ void shutdownTcpSocket(SOCKET s) {
 }
 
 int setNonFatalRecvTimeoutMs(SOCKET s, int timeoutMs) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     // Windows says that SO_RCVTIMEO puts the socket into an indeterminate state
     // when a timeout occurs. MSDN doesn't go into it any more than that, but it
     // seems likely that they are referring to the inability to know whether a
@@ -93,7 +93,7 @@ int setNonFatalRecvTimeoutMs(SOCKET s, int timeoutMs) {
 }
 
 int pollSockets(struct pollfd* pollFds, int pollFdsCount, int timeoutMs) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     // We could have used WSAPoll() but it has some nasty bugs
     // https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/
     //
@@ -206,7 +206,7 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
                     (LastSocketError() == EWOULDBLOCK ||
                      LastSocketError() == EINTR ||
                      LastSocketError() == EAGAIN ||
-         #if defined(LC_WINDOWS)
+         #if defined(LC_WINDOWS) && !defined(NXDK)
                      // This error is specific to overlapped I/O which isn't even
                      // possible to perform with recvfrom(). It seems to randomly
                      // be returned instead of WSAETIMEDOUT on certain systems.
@@ -221,7 +221,7 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
     // We may receive an error due to a previous ICMP Port Unreachable error received
     // by this socket. We want to ignore those and continue reading. If the remote party
     // is really dead, ENet or TCP connection failures will trigger connection teardown.
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     } while (err < 0 && LastSocketError() == WSAECONNRESET);
 #else
     } while (err < 0 && LastSocketError() == ECONNREFUSED);
@@ -231,7 +231,7 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
 }
 
 void closeSocket(SOCKET s) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     closesocket(s);
 #else
     close(s);
@@ -335,7 +335,7 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
         int val = 1;
         setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, (char*)&val, sizeof(val));
     }
-#elif defined(LC_WINDOWS)
+#elif defined(LC_WINDOWS) && !defined(NXDK)
     {
         // Disable WSAECONNRESET for UDP sockets on Windows
         BOOL val = FALSE;
@@ -412,7 +412,7 @@ int setSocketNonBlocking(SOCKET s, bool enabled) {
 #elif defined(O_NONBLOCK) && !defined(NXDK)
     return fcntl(s, F_SETFL, (enabled ? O_NONBLOCK : 0) | (fcntl(s, F_GETFL) & ~O_NONBLOCK));
 #elif defined(FIONBIO)
-#ifdef LC_WINDOWS
+#if defined(LC_WINDOWS) && !defined(NXDK)
     u_long val = enabled ? 1 : 0;
 #else
     int val = enabled ? 1 : 0;
@@ -470,7 +470,7 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
     // Note: This only changes the max packet size we can *receive* from the host PC.
     // We still must split our own sends into smaller chunks with TCP_NODELAY enabled to
     // avoid MTU issues on the way out to to the target.
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     int val;
 
     // Windows doesn't support setting TCP_MAXSEG but IP_PMTUDISC_DONT forces the MSS to the protocol
@@ -1006,7 +1006,7 @@ void exitLowLatencyMode(void) {
 }
 
 int initializePlatformSockets(void) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     WSADATA data;
     return WSAStartup(MAKEWORD(2, 0), &data);
 #elif defined(__vita__) || defined(__WIIU__) || defined(__3DS__)
@@ -1029,7 +1029,7 @@ int initializePlatformSockets(void) {
 }
 
 void cleanupPlatformSockets(void) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS) && !defined(NXDK)
     WSACleanup();
 #else
 #endif
