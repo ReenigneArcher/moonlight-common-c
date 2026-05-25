@@ -1087,7 +1087,17 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             goto Exit;
         }
 
-        if ((StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_AV1) && strstr(response.payload, "AV1/90000")) {
+        if ((StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_MPEG2) &&
+                (serverInfo->serverCodecModeSupport & SCM_MPEG2) &&
+                (strstr(response.payload, "MPV/90000") || strstr(response.payload, "MPEG2/90000") || strstr(response.payload, "MPEG-2/90000"))) {
+            NegotiatedVideoFormat = VIDEO_FORMAT_MPEG2;
+        }
+        else if ((StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_H263P) &&
+                (serverInfo->serverCodecModeSupport & SCM_MASK_H263P) &&
+                (strstr(response.payload, "H263-1998/90000") || strstr(response.payload, "H263-2000/90000"))) {
+            NegotiatedVideoFormat = VIDEO_FORMAT_H263P;
+        }
+        if (NegotiatedVideoFormat == 0 && (StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_AV1) && strstr(response.payload, "AV1/90000")) {
             if ((serverInfo->serverCodecModeSupport & SCM_AV1_HIGH10_444) && (StreamConfig.supportedVideoFormats & VIDEO_FORMAT_AV1_HIGH10_444)) {
                 NegotiatedVideoFormat = VIDEO_FORMAT_AV1_HIGH10_444;
             }
@@ -1101,7 +1111,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
                 NegotiatedVideoFormat = VIDEO_FORMAT_AV1_MAIN8;
             }
         }
-        else if ((StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_H265) && strstr(response.payload, "sprop-parameter-sets=AAAAAU")) {
+        else if (NegotiatedVideoFormat == 0 && (StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_H265) && strstr(response.payload, "sprop-parameter-sets=AAAAAU")) {
             // The RTSP DESCRIBE reply will contain a collection of SDP media attributes that
             // describe the various supported video stream formats and include the SPS, PPS,
             // and VPS (if applicable). We will use this information to determine whether the
@@ -1121,7 +1131,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
                 NegotiatedVideoFormat = VIDEO_FORMAT_H265;
             }
         }
-        else {
+        else if (NegotiatedVideoFormat == 0 && (StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_H264)) {
             if ((serverInfo->serverCodecModeSupport & SCM_H264_HIGH8_444) && (StreamConfig.supportedVideoFormats & VIDEO_FORMAT_H264_HIGH8_444)) {
                 NegotiatedVideoFormat = VIDEO_FORMAT_H264_HIGH8_444;
             }
@@ -1133,6 +1143,11 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             if (StreamConfig.width > 4096 || StreamConfig.height > 4096) {
                 Limelog("WARNING: Host PC doesn't support HEVC. Streaming at resolutions above 4K using H.264 will likely fail!\n");
             }
+        }
+        else if (NegotiatedVideoFormat == 0) {
+            Limelog("No mutually supported video codec found in RTSP DESCRIBE response\n");
+            ret = -1;
+            goto Exit;
         }
 
         // Look for the SDP attribute that indicates we're dealing with a server that supports RFI

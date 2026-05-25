@@ -433,6 +433,18 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         if (NegotiatedVideoFormat & VIDEO_FORMAT_MASK_AV1) {
             err |= addAttributeString(&optionHead, "x-nv-vqos[0].bitStreamFormat", "2");
         }
+        else if (NegotiatedVideoFormat & VIDEO_FORMAT_MASK_MPEG2) {
+            // Moonlight-XboxOG private extension. Public GameStream only defines
+            // 0=H.264, 1=HEVC, and 2=AV1.
+            err |= addAttributeString(&optionHead, "x-nv-clientSupportHevc", "0");
+            err |= addAttributeString(&optionHead, "x-nv-vqos[0].bitStreamFormat", "3");
+        }
+        else if (NegotiatedVideoFormat & VIDEO_FORMAT_MASK_H263P) {
+            // Moonlight-XboxOG private extension. A custom host must opt into
+            // this value with the matching ServerCodecModeSupport bit.
+            err |= addAttributeString(&optionHead, "x-nv-clientSupportHevc", "0");
+            err |= addAttributeString(&optionHead, "x-nv-vqos[0].bitStreamFormat", "4");
+        }
         else if (NegotiatedVideoFormat & VIDEO_FORMAT_MASK_H265) {
             err |= addAttributeString(&optionHead, "x-nv-clientSupportHevc", "1");
             err |= addAttributeString(&optionHead, "x-nv-vqos[0].bitStreamFormat", "1");
